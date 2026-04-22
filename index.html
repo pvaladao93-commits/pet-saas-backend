@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Login</h2>
+
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+
+<button onclick="login()">Entrar</button>
+
+<script>
+async function login(){
+  const res = await fetch("https://SEU_BACKEND.onrender.com/login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      email: document.getElementById("email").value,
+      senha: document.getElementById("senha").value
+    })
+  });
+
+  const data = await res.json();
+  localStorage.setItem("token", data.token);
+
+  alert("Logado!");
+}
+</script>
+
+</body>
+</html>
