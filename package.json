@@ -1,0 +1,16 @@
+{
+  "name": "pet-saas-backend",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "pg": "^8.11.0",
+    "dotenv": "^16.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "bcrypt": "^5.1.0"
+  }
+}
