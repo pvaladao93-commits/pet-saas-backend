@@ -4,6 +4,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const db = require("./config/db");
+const PDFDocument = require("pdfkit");
 
 const app = express();
 app.use(cors());
@@ -29,12 +30,15 @@ app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
 
   const user = await db.query("SELECT * FROM usuarios WHERE email=$1", [email]);
+
   if (!user.rows.length) return res.status(400).json({ erro: "Usuário não encontrado" });
 
   const valid = await bcrypt.compare(senha, user.rows[0].senha);
+
   if (!valid) return res.status(400).json({ erro: "Senha inválida" });
 
   const token = jwt.sign(user.rows[0], process.env.JWT_SECRET);
+
   res.json({ token });
 });
 
@@ -49,16 +53,11 @@ app.get("/pets", auth, async (req, res) => {
 });
 
 app.post("/pets", auth, async (req, res) => {
+  const { nome } = req.body;
+
   await db.query(
-    "INSERT INTO pets (nome, raca, peso, cor, dono, empresa_id) VALUES ($1,$2,$3,$4,$5,$6)",
-    [
-      req.body.nome,
-      req.body.raca,
-      req.body.peso,
-      req.body.cor,
-      req.body.dono,
-      req.user.empresa_id
-    ]
+    "INSERT INTO pets (nome, empresa_id) VALUES ($1,$2)",
+    [nome, req.user.empresa_id]
   );
 
   res.json({ ok: true });
@@ -71,6 +70,7 @@ app.get("/agenda", auth, async (req, res) => {
     "SELECT * FROM agenda WHERE empresa_id=$1",
     [req.user.empresa_id]
   );
+
   res.json(dados.rows);
 });
 
@@ -85,28 +85,6 @@ app.post("/agenda", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-/* ================= FINANCEIRO ================= */
-
-app.get("/financeiro/dre", auth, async (req, res) => {
-  const empresa = req.user.empresa_id;
-
-  const receita = await db.query(
-    "SELECT SUM(valor) FROM lancamentos WHERE tipo='entrada' AND empresa_id=$1",
-    [empresa]
-  );
-
-  const despesa = await db.query(
-    "SELECT SUM(valor) FROM lancamentos WHERE tipo='saida' AND empresa_id=$1",
-    [empresa]
-  );
-
-  res.json({
-    receita: receita.rows[0].sum || 0,
-    despesa: despesa.rows[0].sum || 0,
-    lucro: (receita.rows[0].sum || 0) - (despesa.rows[0].sum || 0)
-  });
-});
-
 /* ================= DASHBOARD ================= */
 
 app.get("/dashboard", auth, async (req, res) => {
@@ -117,69 +95,25 @@ app.get("/dashboard", auth, async (req, res) => {
     [empresa]
   );
 
-  const atend = await db.query(
-    "SELECT COUNT(*) FROM agenda WHERE empresa_id=$1",
-    [empresa]
-  );
-
   res.json({
-    faturamento: fat.rows[0].sum || 0,
-    atendimentos: atend.rows[0].count
+    faturamento: fat.rows[0].sum || 0
   });
-});
-
-/* ================= IA (LIBERADA) ================= */
-
-app.post("/ia", auth, async (req, res) => {
-  const axios = require("axios");
-
-  const resposta = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      model: "gpt-4.1",
-      messages: [{ role: "user", content: req.body.texto }]
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_KEY}`
-      }
-    }
-  );
-
-  res.json(resposta.data);
 });
 
 /* ================= PDF ================= */
 
-const PDFDocument = require("pdfkit");
-
 app.get("/pdf", auth, (req, res) => {
-  const doc = new PDFDocument({ margin: 50 });
+  const doc = new PDFDocument();
+
   res.setHeader("Content-Type", "application/pdf");
 
   doc.pipe(res);
-
-  doc.fontSize(18).text("Relatório Veterinário", { align: "center" });
-  doc.moveDown();
-
-  doc.text("Pet: Rex");
-  doc.text("Tutor: João");
-  doc.moveDown();
-
-  doc.text("Procedimentos:");
-  doc.text("- Consulta: R$ 100");
-  doc.text("- Vacina: R$ 80");
-
-  doc.moveDown();
-  doc.text("Total: R$ 180");
-
-  doc.moveDown(2);
-  doc.text("________________________");
-  doc.text("Assinatura");
-
+  doc.text("Relatório PetShop");
+  doc.text("Assinatura: ____________");
   doc.end();
 });
 
 /* ================= START ================= */
 
-app.listen(3000, () => console.log("Servidor rodando"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Servidor rodando"));
